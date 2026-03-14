@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>TruthLens — Fake News Detector</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:ital,wght@0,300;0,400;0,500;0,700;1,300&display=swap" rel="stylesheet" />
+</head>
+<body>
+
+  <!-- Background grid -->
+  <div class="bg-grid" aria-hidden="true"></div>
+
+  <!-- Floating ink blobs -->
+  <div class="blob blob-1" aria-hidden="true"></div>
+  <div class="blob blob-2" aria-hidden="true"></div>
+
+  <main class="container">
+
+    <!-- ── Header ─────────────────────────────── -->
+    <header class="site-header">
+      <div class="logo-mark" aria-hidden="true">✦</div>
+      <h1 class="site-title">TruthLens</h1>
+      <p class="site-tagline">AI-powered fake news detection in seconds</p>
+    </header>
+
+    <!-- ── Card ───────────────────────────────── -->
+    <section class="card" role="main">
+
+      <div class="card-top">
+        <span class="badge">BETA</span>
+        <span class="card-label">Paste your article or headline below</span>
+      </div>
+
+      <textarea
+        id="newsInput"
+        class="news-input"
+        placeholder="Paste a news headline or full article here…"
+        rows="7"
+        aria-label="News text input"
+        spellcheck="false"
+      ></textarea>
+
+      <div class="input-meta">
+        <span id="charCount" class="char-count">0 characters</span>
+        <button id="clearBtn" class="btn-clear" type="button" aria-label="Clear input">✕ Clear</button>
+      </div>
+
+      <button id="checkBtn" class="btn-check" type="button">
+        <span class="btn-text">Analyse News</span>
+        <span class="btn-icon" aria-hidden="true">→</span>
+        <div class="btn-loader" aria-hidden="true"></div>
+      </button>
+
+      <!-- ── Result panel ─────────────────────── -->
+      <div id="resultPanel" class="result-panel" aria-live="polite" hidden>
+
+        <div class="result-verdict">
+          <div id="verdictIcon" class="verdict-icon" aria-hidden="true"></div>
+          <div>
+            <div id="verdictLabel" class="verdict-label"></div>
+            <div id="verdictSub" class="verdict-sub"></div>
+          </div>
+        </div>
+
+        <div class="meter-row">
+          <span class="meter-label">FAKE</span>
+          <div class="meter-track" role="img" aria-label="Probability bar">
+            <div id="fakeBar"  class="meter-fill meter-fill--fake"></div>
+            <div id="realBar"  class="meter-fill meter-fill--real"></div>
+          </div>
+          <span class="meter-label">REAL</span>
+        </div>
+
+        <div class="prob-row">
+          <div class="prob-cell">
+            <div id="fakeProb" class="prob-num prob-num--fake">—</div>
+            <div class="prob-name">Fake probability</div>
+          </div>
+          <div class="prob-divider"></div>
+          <div class="prob-cell">
+            <div id="realProb" class="prob-num prob-num--real">—</div>
+            <div class="prob-name">Real probability</div>
+          </div>
+        </div>
+
+        <p class="disclaimer">
+          ⚠ This tool is powered by a machine-learning model and may make errors.
+          Always verify with trusted sources.
+        </p>
+
+      </div>
+
+      <!-- ── Error panel ──────────────────────── -->
+      <div id="errorPanel" class="error-panel" aria-live="assertive" hidden>
+        <span class="error-icon" aria-hidden="true">!</span>
+        <span id="errorMsg"></span>
+      </div>
+
+    </section>
+
+    <!-- ── How it works ────────────────────────── -->
+    <section class="how-it-works">
+      <h2 class="section-title">How it works</h2>
+      <div class="steps">
+        <div class="step">
+          <div class="step-num">01</div>
+          <div class="step-body">
+            <strong>Text cleaning</strong>
+            NLTK removes stopwords, URLs, and noise, then lemmatizes each token.
+          </div>
+        </div>
+        <div class="step">
+          <div class="step-num">02</div>
+          <div class="step-body">
+            <strong>TF-IDF vectorisation</strong>
+            10,000-feature unigram + bigram vectors capture language patterns.
+          </div>
+        </div>
+        <div class="step">
+          <div class="step-num">03</div>
+          <div class="step-body">
+            <strong>Logistic Regression</strong>
+            A calibrated classifier outputs a probability score for fake vs real.
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <footer class="site-footer">
+      Built with Flask · scikit-learn · NLTK &nbsp;|&nbsp; TruthLens © 2025
+    </footer>
+
+  </main>
+
+  <script>
+    const input    = document.getElementById("newsInput");
+    const checkBtn = document.getElementById("checkBtn");
+    const clearBtn = document.getElementById("clearBtn");
+    const charCount= document.getElementById("charCount");
+    const resultPanel = document.getElementById("resultPanel");
+    const errorPanel  = document.getElementById("errorPanel");
+
+    // ── Character counter ──────────────────────
+    input.addEventListener("input", () => {
+      const n = input.value.length;
+      charCount.textContent = n === 1 ? "1 character" : `${n.toLocaleString()} characters`;
+    });
+
+    // ── Clear ──────────────────────────────────
+    clearBtn.addEventListener("click", () => {
+      input.value = "";
+      charCount.textContent = "0 characters";
+      hide(resultPanel);
+      hide(errorPanel);
+      input.focus();
+    });
+
+    // ── Keyboard shortcut: Ctrl/Cmd + Enter ───
+    input.addEventListener("keydown", e => {
+      if ((e.ctrlKey || e.metaKey) && e.key === "Enter") checkBtn.click();
+    });
+
+    // ── Analyse ────────────────────────────────
+    checkBtn.addEventListener("click", async () => {
+      const text = input.value.trim();
+      if (!text) {
+        showError("Please paste a news headline or article first.");
+        return;
+      }
+
+      setLoading(true);
+      hide(resultPanel);
+      hide(errorPanel);
+
+      try {
+        const res = await fetch("/predict", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ text }),
+        });
+        const data = await res.json();
+
+        if (!res.ok) {
+          showError(data.error || "Server error. Please try again.");
+          return;
+        }
+
+        showResult(data);
+      } catch (err) {
+        showError("Could not reach the server. Is the Flask app running?");
+      } finally {
+        setLoading(false);
+      }
+    });
+
+    // ── Helpers ────────────────────────────────
+    function hide(el)  { el.hidden = true;  el.classList.remove("visible"); }
+    function show(el)  { el.hidden = false; requestAnimationFrame(() => el.classList.add("visible")); }
+
+    function setLoading(on) {
+      checkBtn.classList.toggle("loading", on);
+      checkBtn.disabled = on;
+    }
+
+    function showError(msg) {
+      document.getElementById("errorMsg").textContent = msg;
+      show(errorPanel);
+    }
+
+    function showResult({ label, prediction, confidence, fake_prob, real_prob }) {
+      const isFake = prediction === 0;
+
+      // Verdict icon & label
+      document.getElementById("verdictIcon").textContent = isFake ? "✗" : "✓";
+      document.getElementById("verdictLabel").textContent = label;
+      document.getElementById("verdictSub").textContent  =
+        `Model confidence: ${confidence}%`;
+
+      // Colour class on panel
+      resultPanel.classList.remove("verdict--fake", "verdict--real");
+      resultPanel.classList.add(isFake ? "verdict--fake" : "verdict--real");
+
+      // Meter bars (animate width)
+      const fakeBar = document.getElementById("fakeBar");
+      const realBar = document.getElementById("realBar");
+      fakeBar.style.width = "0%";
+      realBar.style.width = "0%";
+      requestAnimationFrame(() => {
+        fakeBar.style.width = fake_prob + "%";
+        realBar.style.width = real_prob + "%";
+      });
+
+      // Probability numbers
+      document.getElementById("fakeProb").textContent = fake_prob + "%";
+      document.getElementById("realProb").textContent = real_prob + "%";
+
+      show(resultPanel);
+      resultPanel.scrollIntoView({ behavior: "smooth", block: "nearest" });
+    }
+  </script>
+</body>
+</html>
