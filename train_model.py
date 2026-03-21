@@ -2,12 +2,14 @@
 train_model.py - Train the Fake News Detection model
 
 Usage:
-  Option 1 (built-in dataset - works without Kaggle):
+  Option 1 (built-in dataset - works without any download):
       python train_model.py
 
-  Option 2 (Kaggle dataset - highest accuracy):
-      Place 'Fake.csv' and 'True.csv' from Kaggle in this directory, then run:
+  Option 2 (Kaggle dataset):
       python train_model.py --kaggle
+
+  Option 3 (WELFake dataset - Best 72,134 articles):
+      python train_model.py --welfake
 """
 
 import argparse
@@ -52,6 +54,18 @@ def load_kaggle_data() -> pd.DataFrame:
     return df[["text", "label"]]
 
 
+def load_welfake_data() -> pd.DataFrame:
+    """Load WELFake dataset - 72,134 articles"""
+    df = pd.read_csv("WELFake_Dataset.csv")
+    print(f"      Columns found : {list(df.columns)}")
+    # WELFake columns: serial_number, title, text, label
+    # label: 0 = Fake, 1 = Real
+    df = df.dropna(subset=["label"])
+    df["text"] = (df.get("title", "").fillna("") + " " + df.get("text", "").fillna("")).str.strip()
+    df["label"] = df["label"].astype(int)
+    return df[["text", "label"]]
+
+
 def load_demo_data() -> pd.DataFrame:
     fake_news = [
         "BREAKING: Scientists discover drinking bleach cures all diseases instantly no side effects whatsoever",
@@ -84,36 +98,6 @@ def load_demo_data() -> pd.DataFrame:
         "FEMA concentration camps fully built and operational ready to immediately house political dissidents brave journalist reveals truth",
         "AI robots secretly replacing senior government officials in Washington insiders at highest levels of White House confirm",
         "New world order globalist depopulation plan to completely eliminate middle class and enslave all humanity accelerating rapidly now",
-        "SHOCKING CONFESSION: Famous actor caught on hidden camera admitting global warming is complete hoax invented by global elites",
-        "EXPOSED: Major hospitals deliberately killing patients to harvest and sell organs to wealthy buyers worldwide whistleblower reveals",
-        "Massive secret underground tunnel network beneath every major American city used by elites for child trafficking finally exposed",
-        "BREAKING ADMISSION: Government secretly admits spraying toxic biological chemicals on unknowing population from planes for thirty years",
-        "Princess Diana was deliberately murdered by British royal family because she discovered their darkest most disturbing secrets",
-        "Climate scientists bribed millions of dollars annually to completely fabricate global warming data entire narrative is elaborate lie",
-        "URGENT TECH WARNING: Latest smartphone software update secretly activates front camera and microphone to spy on users delete now",
-        "Suppressed miracle cancer cure hidden from public for over fifty years finally leaked online Big Pharma furiously tries to censor",
-        "All world leaders secretly replaced by identical clones at recent Davos meeting top body language expert reveals irrefutable proof",
-        "NASA finally secretly admits never actually landed on moon entire Apollo program elaborately filmed on Hollywood soundstage by Kubrick",
-        "BREAKING EXCLUSIVE: Famous senior politician arrested for massive international child trafficking ring but entire media completely refuses to report",
-        "Ancient secret society has controlled all world governments central banks and mainstream media their sinister plan for humanity exposed",
-        "BOMBSHELL ADMISSION: Top virologist secretly admits COVID nineteen was deliberately engineered as bioweapon against civilian population revealed",
-        "Drinking raw unfiltered morning urine completely cures every known disease ancient suppressed remedy Big Pharma desperately hiding from public",
-        "URGENT ALERT: Five major American cities scheduled to be hit by staged government false flag terror attack this weekend",
-        "Hidden Illuminati symbols discovered throughout new dollar bill design absolute irrefutable proof they control entire global financial system",
-        "EXPOSED FINALLY: Every major American election for past thirty years has been completely rigged by unelected shadow government",
-        "Groundbreaking discovery proves human beings are actually genetically engineered alien hybrid species truth deliberately hidden by world governments",
-        "BREAKING INSIDER: Whistleblower from deep inside CDC admits all childhood vaccines are completely ineffective and deliberately harmful to children",
-        "Giant underwater pyramid structures discovered off coast definitively prove lost continent of Atlantis was real government covering up discovery",
-        "Politician caught on hidden camera laughing and admitting to personally rigging votes across multiple swing states footage leaked online",
-        "EXCLUSIVE BOMBSHELL: Senior senator arrested in massive bribery corruption scandal involving hostile foreign government mainstream media completely silent",
-        "Leaked internal emails prove entire major political party secretly working to systematically destroy America from within shocking new revelations",
-        "Famous celebrity publicly announces open support for designated terrorist organization mainstream media desperately tries to completely cover it up",
-        "BOMBSHELL REPORT: Senior four star general confirms military actively planning armed coup against democratically elected government sources confirm",
-        "Politician secretly owns large financial stake in defense contractor that profits enormously from war explaining hawkish foreign policy positions",
-        "LEAKED MEMO: Internal network document shows major television news network ordered journalists to deliberately lie about election to help candidate",
-        "Famous award winning journalist secretly paid tens of millions by hostile foreign government to spread anti American propaganda confirmed",
-        "URGENT BREAKING: Martial law being secretly planned and prepared for implementation in major American cities rollout begins next week sources",
-        "Senior politician diagnosed with serious terminal illness being actively hidden from voting public in massive cover up by inner circle",
     ]
 
     real_news = [
@@ -137,55 +121,19 @@ def load_demo_data() -> pd.DataFrame:
         "SpaceX Falcon rocket successfully launches sixty additional Starlink internet satellites into planned low Earth orbit expanding global coverage",
         "Large scale clinical trial demonstrates new diabetes medication reduces major cardiovascular event risk by thirty percent in patients",
         "Marine scientists discover deep ocean microorganism capable of efficiently breaking down plastic waste opening promising new recycling possibilities",
-        "Major longitudinal study confirms Mediterranean dietary pattern significantly reduces risk of heart disease stroke and type two diabetes",
-        "Research team announces successful gene therapy trial that partially restores functional sight to patients with severe inherited blindness",
-        "Novel antibiotic compound discovered by university researchers effectively eliminates drug resistant bacteria strains including deadly hospital MRSA",
-        "International team successfully sequences complete genome of preserved woolly mammoth specimen raising future de extinction scientific discussions",
-        "Large neuroimaging study reveals distinct measurable brain activity patterns uniquely associated with treatment resistant chronic clinical depression",
         "European Union parliament passes landmark comprehensive digital data privacy legislation significantly affecting operations of major technology companies",
         "United Nations peacekeeping forces deployed to conflict zone following successful internationally brokered ceasefire agreement between warring factions",
         "Historic international climate conference reaches binding multilateral agreement on significant carbon emission reduction targets for participating member nations",
         "Supreme Court issues major landmark ruling on important case involving digital privacy rights and scope of government surveillance authority",
         "Senate committee approves comprehensive new cybersecurity legislation requiring critical infrastructure operators to promptly report significant security breaches",
-        "Foreign ministers from twelve nations convene in Geneva to negotiate updated framework for nuclear nonproliferation treaty compliance verification",
-        "Presidential administration formally announces new executive order significantly expanding federal environmental protections for national forest wilderness lands",
-        "House of Representatives passes sweeping comprehensive immigration reform legislation with meaningful bipartisan support sending measure to Senate",
-        "International Criminal Court formally issues arrest warrant for senior military commander accused of systematic war crimes and atrocities",
-        "State department announces new multilateral diplomatic initiative specifically aimed at meaningfully reducing dangerous tensions between nuclear armed nations",
         "Climate scientists report Arctic sea ice annual extent reaches alarming record low for third consecutive year deeply concerning researchers",
         "Wildfires force evacuation orders for tens of thousands of residents as firefighters battle massive blazes across drought stricken California",
-        "Flood waters slowly begin receding in devastated coastal communities after powerful Category four hurricane causes widespread catastrophic infrastructure damage",
-        "Tropical depression rapidly intensifies to dangerous Category four hurricane ahead of predicted destructive Gulf Coast landfall tomorrow afternoon",
         "New comprehensive government climate report warns rising sea levels may displace hundreds of millions of coastal residents by century end",
-        "Environmental protection agency announces strict comprehensive new regulations significantly limiting industrial carbon dioxide emissions from coal power plants",
-        "Record breaking prolonged heat wave grips southern Europe as temperatures exceed forty seven degrees Celsius across multiple major cities",
-        "Scientists issue urgent warning that Amazon rainforest is rapidly approaching critical ecological tipping point that could trigger irreversible collapse",
-        "Ocean surface temperatures reach unprecedented record highs triggering massive widespread coral bleaching event across entire Great Barrier Reef system",
-        "Major metropolitan areas announce ambitious coordinated plans to achieve full carbon neutrality by year two thousand forty accelerating renewable energy",
         "Major semiconductor manufacturer announces fifteen billion dollar capital investment to construct new advanced chip fabrication facility on domestic soil",
-        "Global semiconductor chip shortage expected to gradually ease as manufacturers significantly expand production capacity throughout next calendar year",
-        "Leading technology company announces major corporate restructuring plan including significant layoffs of five thousand workers to reduce operating overhead",
-        "Prominent artificial intelligence startup raises record breaking three billion dollar Series C funding round to develop advanced language model",
-        "Critical cybersecurity vulnerability discovered affecting hundreds of millions of connected devices worldwide prompting urgent emergency software patch release",
-        "Major social media platform announces comprehensive sweeping content moderation policy reforms aimed at meaningfully reducing harmful misinformation spread",
-        "Electric vehicle unit sales surpass traditional internal combustion engine car sales for first time in significant major European market",
-        "Dominant technology company reaches regulatory settlement paying record breaking two billion dollar financial penalty for serious antitrust violations",
-        "University research laboratory demonstrates revolutionary new solid state battery technology offering double the energy density of current lithium ion",
-        "Large scale coordinated internet infrastructure cyberattack temporarily disrupts essential online services for millions of users across multiple continents Tuesday",
-        "New significant archaeological excavation in Egypt uncovers previously completely unknown ancient royal pharaoh burial tomb filled with priceless artifacts",
-        "Former head of state makes first significant public appearance since departing office delivering keynote address at major economic policy conference",
-        "Federal grand jury formal indictment names three senior corporate executives in large scale sophisticated accounting fraud conspiracy scheme",
-        "New comprehensive housing market data confirms home prices cooling measurably in major metropolitan areas after sustained years of appreciation",
-        "Bipartisan Senate working group formally proposes comprehensive meaningful reforms to significantly outdated campaign finance disclosure and contribution regulations",
-        "National health service publishes report documenting substantial surge in mental health treatment service demand following prolonged pandemic related stress",
-        "Major international airline formally announces significant expansion of long haul international route network as global travel demand recovers strongly",
-        "City council formally approves ambitious fifteen billion dollar comprehensive public mass transportation network expansion plan after years of deliberation",
-        "New comprehensive economic analysis finds persistent significant gender pay gap across most major industries despite decades of equal pay law",
         "University research team publishes large scale longitudinal study demonstrating strong causal link between heavy social media use and adolescent anxiety",
     ]
 
     data = [(t, 0) for t in fake_news] + [(t, 1) for t in real_news]
-
     augmented = []
     rng = np.random.default_rng(42)
     for text, label in data:
@@ -204,12 +152,15 @@ def load_demo_data() -> pd.DataFrame:
     return df.sample(frac=1, random_state=42).reset_index(drop=True)
 
 
-def train(use_kaggle: bool = False):
+def train(use_kaggle: bool = False, use_welfake: bool = False):
     print("=" * 55)
     print("  Fake News Detector — Model Training")
     print("=" * 55)
 
-    if use_kaggle:
+    if use_welfake:
+        print("\n[1/5] Loading WELFake dataset ...")
+        df = load_welfake_data()
+    elif use_kaggle:
         print("\n[1/5] Loading Kaggle dataset ...")
         df = load_kaggle_data()
     else:
@@ -259,6 +210,8 @@ def train(use_kaggle: bool = False):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--kaggle", action="store_true",
-                        help="Use Kaggle Fake.csv / True.csv instead of built-in data")
+                        help="Use Kaggle Fake.csv / True.csv")
+    parser.add_argument("--welfake", action="store_true",
+                        help="Use WELFake_Dataset.csv (best - 72,134 articles)")
     args = parser.parse_args()
-    train(use_kaggle=args.kaggle)
+    train(use_kaggle=args.kaggle, use_welfake=args.welfake)
