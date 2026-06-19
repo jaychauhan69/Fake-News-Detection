@@ -50,6 +50,26 @@ def clean_text(text: str) -> str:
     return " ".join(tokens)
 
 
+def balance_dataset(df: pd.DataFrame) -> pd.DataFrame:
+    """Balance dataset so Fake and Real news have EQUAL counts."""
+    fake_df = df[df["label"] == 0]
+    real_df = df[df["label"] == 1]
+
+    print(f"      Before balancing -> Fake: {len(fake_df)}, Real: {len(real_df)}")
+
+    # Take the minimum count so both classes are equal
+    min_count = min(len(fake_df), len(real_df))
+
+    fake_balanced = fake_df.sample(n=min_count, random_state=42)
+    real_balanced = real_df.sample(n=min_count, random_state=42)
+
+    balanced_df = pd.concat([fake_balanced, real_balanced], ignore_index=True)
+    balanced_df = balanced_df.sample(frac=1, random_state=42).reset_index(drop=True)
+
+    print(f"      After balancing  -> Fake: {min_count}, Real: {min_count} (Equal)")
+    return balanced_df
+
+
 def load_welfake_data() -> pd.DataFrame:
     """Load WELFake dataset - 72,134 articles"""
     print("      Loading WELFake_Dataset.csv ...")
@@ -184,12 +204,28 @@ def load_demo_data() -> pd.DataFrame:
     return df.sample(frac=1, random_state=42).reset_index(drop=True)
 
 
-def train(use_kaggle=False, use_welfake=False, use_isot=False, use_combined=False):
+def load_ultimate_data() -> pd.DataFrame:
+    """Load WELFake + ISOT + Pattern-reinforced demo data (BEST for catching obvious fake news)"""
+    welfake = load_welfake_data()
+    isot    = load_isot_data()
+    demo    = load_demo_data()  # includes augmented sensational fake-news patterns
+
+    df = pd.concat([welfake, isot, demo], ignore_index=True)
+    df = df.drop_duplicates(subset=["text"])
+    df = df.sample(frac=1, random_state=42).reset_index(drop=True)
+    print(f"      Ultimate combined total articles : {len(df)}")
+    return df[["text", "label"]]
+
+
+def train(use_kaggle=False, use_welfake=False, use_isot=False, use_combined=False, use_ultimate=False, balance=False):
     print("=" * 55)
     print("  Fake News Detector — Model Training")
     print("=" * 55)
 
-    if use_combined:
+    if use_ultimate:
+        print("\n[1/5] Loading WELFake + ISOT + Pattern-reinforced dataset (ULTIMATE) ...")
+        df = load_ultimate_data()
+    elif use_combined:
         print("\n[1/5] Loading WELFake + ISOT combined dataset ...")
         df = load_combined_data()
     elif use_welfake:
@@ -208,6 +244,13 @@ def train(use_kaggle=False, use_welfake=False, use_isot=False, use_combined=Fals
     print(f"\n      Total samples : {len(df)}")
     print(f"      Fake (0)      : {(df.label == 0).sum()}")
     print(f"      Real (1)      : {(df.label == 1).sum()}")
+
+    if balance:
+        print("\n      Balancing dataset (Fake = Real count) ...")
+        df = balance_dataset(df)
+        print(f"\n      Total samples after balancing : {len(df)}")
+        print(f"      Fake (0)      : {(df.label == 0).sum()}")
+        print(f"      Real (1)      : {(df.label == 1).sum()}")
 
     print("\n[2/5] Cleaning text ...")
     df["clean_text"] = df["text"].apply(clean_text)
@@ -250,11 +293,15 @@ if __name__ == "__main__":
     parser.add_argument("--kaggle",   action="store_true", help="Use Kaggle Fake.csv / True.csv")
     parser.add_argument("--welfake",  action="store_true", help="Use WELFake_Dataset.csv")
     parser.add_argument("--isot",     action="store_true", help="Use ISOT_Fake.csv / ISOT_True.csv")
-    parser.add_argument("--combined", action="store_true", help="Use WELFake + ISOT combined (BEST)")
+    parser.add_argument("--combined", action="store_true", help="Use WELFake + ISOT combined")
+    parser.add_argument("--ultimate", action="store_true", help="Use WELFake + ISOT + Pattern data (BEST)")
+    parser.add_argument("--balance", action="store_true", help="Balance dataset so Fake = Real count exactly")
     args = parser.parse_args()
     train(
         use_kaggle=args.kaggle,
         use_welfake=args.welfake,
         use_isot=args.isot,
         use_combined=args.combined,
+        use_ultimate=args.ultimate,
+        balance=args.balance,
     )
