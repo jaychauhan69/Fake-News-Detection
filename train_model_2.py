@@ -204,27 +204,60 @@ def load_demo_data() -> pd.DataFrame:
     return df.sample(frac=1, random_state=42).reset_index(drop=True)
 
 
-def load_ultimate_data() -> pd.DataFrame:
-    """Load WELFake + ISOT + Pattern-reinforced demo data (BEST for catching obvious fake news)"""
+def load_indian_data() -> pd.DataFrame:
+    """Load Indian News Dataset (news_dataset.csv) - label,text format"""
+    print("      Loading news_dataset.csv (Indian News) ...")
+    df = pd.read_csv("news_dataset.csv")
+    df = df.dropna(subset=["label", "text"])
+    # Convert REAL/FAKE text labels to 1/0
+    df["label"] = df["label"].astype(str).str.strip().str.upper().map({"FAKE": 0, "REAL": 1})
+    df = df.dropna(subset=["label"])
+    df["label"] = df["label"].astype(int)
+    print(f"      Indian articles loaded : {len(df)}")
+    return df[["text", "label"]]
+
+
+def load_global_data() -> pd.DataFrame:
+    """Load WELFake + ISOT + Indian News combined (BEST - covers both global and Indian context)"""
     welfake = load_welfake_data()
     isot    = load_isot_data()
+    indian  = load_indian_data()
+
+    df = pd.concat([welfake, isot, indian], ignore_index=True)
+    df = df.drop_duplicates(subset=["text"])
+    df = df.sample(frac=1, random_state=42).reset_index(drop=True)
+    print(f"      Global combined total articles : {len(df)}")
+    return df[["text", "label"]]
+
+
+def load_ultimate_data() -> pd.DataFrame:
+    """Load WELFake + ISOT + Indian News + Pattern-reinforced demo data (ULTIMATE - covers global, Indian, AND obvious-fake patterns)"""
+    welfake = load_welfake_data()
+    isot    = load_isot_data()
+    indian  = load_indian_data()
     demo    = load_demo_data()  # includes augmented sensational fake-news patterns
 
-    df = pd.concat([welfake, isot, demo], ignore_index=True)
+    df = pd.concat([welfake, isot, indian, demo], ignore_index=True)
     df = df.drop_duplicates(subset=["text"])
     df = df.sample(frac=1, random_state=42).reset_index(drop=True)
     print(f"      Ultimate combined total articles : {len(df)}")
     return df[["text", "label"]]
 
 
-def train(use_kaggle=False, use_welfake=False, use_isot=False, use_combined=False, use_ultimate=False, balance=False):
+def train(use_kaggle=False, use_welfake=False, use_isot=False, use_combined=False, use_ultimate=False, use_indian=False, use_global=False, balance=False):
     print("=" * 55)
     print("  Fake News Detector — Model Training")
     print("=" * 55)
 
     if use_ultimate:
-        print("\n[1/5] Loading WELFake + ISOT + Pattern-reinforced dataset (ULTIMATE) ...")
+        print("\n[1/5] Loading WELFake + ISOT + Indian + Pattern dataset (ULTIMATE) ...")
         df = load_ultimate_data()
+    elif use_global:
+        print("\n[1/5] Loading WELFake + ISOT + Indian News (GLOBAL) ...")
+        df = load_global_data()
+    elif use_indian:
+        print("\n[1/5] Loading Indian News dataset ...")
+        df = load_indian_data()
     elif use_combined:
         print("\n[1/5] Loading WELFake + ISOT combined dataset ...")
         df = load_combined_data()
@@ -294,7 +327,9 @@ if __name__ == "__main__":
     parser.add_argument("--welfake",  action="store_true", help="Use WELFake_Dataset.csv")
     parser.add_argument("--isot",     action="store_true", help="Use ISOT_Fake.csv / ISOT_True.csv")
     parser.add_argument("--combined", action="store_true", help="Use WELFake + ISOT combined")
-    parser.add_argument("--ultimate", action="store_true", help="Use WELFake + ISOT + Pattern data (BEST)")
+    parser.add_argument("--ultimate", action="store_true", help="Use WELFake + ISOT + Indian + Pattern data (BEST OVERALL)")
+    parser.add_argument("--indian",   action="store_true", help="Use news_dataset.csv (Indian News) only")
+    parser.add_argument("--global_data", dest="use_global", action="store_true", help="Use WELFake + ISOT + Indian News combined")
     parser.add_argument("--balance", action="store_true", help="Balance dataset so Fake = Real count exactly")
     args = parser.parse_args()
     train(
@@ -303,5 +338,7 @@ if __name__ == "__main__":
         use_isot=args.isot,
         use_combined=args.combined,
         use_ultimate=args.ultimate,
+        use_indian=args.indian,
+        use_global=args.use_global,
         balance=args.balance,
     )
