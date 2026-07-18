@@ -3,17 +3,14 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>TruthLens — Fake News Detector</title>
-  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}" />
+  <title>TruthLens — Fake News & Image Detector</title>
+  <link rel="stylesheet" href="../static/style.css" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:ital,wght@0,300;0,400;0,500;0,700;1,300&display=swap" rel="stylesheet" />
 </head>
 <body>
 
-  <!-- Background grid -->
   <div class="bg-grid" aria-hidden="true"></div>
-
-  <!-- Floating ink blobs -->
   <div class="blob blob-1" aria-hidden="true"></div>
   <div class="blob blob-2" aria-hidden="true"></div>
 
@@ -23,11 +20,21 @@
     <header class="site-header">
       <div class="logo-mark" aria-hidden="true">✦</div>
       <h1 class="site-title">TruthLens</h1>
-      <p class="site-tagline">AI-powered fake news detection in seconds</p>
+      <p class="site-tagline">AI-powered fake news & image authenticity detection</p>
     </header>
 
-    <!-- ── Card ───────────────────────────────── -->
-    <section class="card" role="main">
+    <!-- ── Tabs ───────────────────────────────── -->
+    <div class="tabs">
+      <button class="tab-btn active" data-tab="text" onclick="switchTab('text')">
+        📰 News Text
+      </button>
+      <button class="tab-btn" data-tab="image" onclick="switchTab('image')">
+        🖼️ Image Check
+      </button>
+    </div>
+
+    <!-- ── TEXT TAB ───────────────────────────── -->
+    <section class="card" id="tab-text">
 
       <div class="card-top">
         <span class="badge">BETA</span>
@@ -45,7 +52,7 @@
 
       <div class="input-meta">
         <span id="charCount" class="char-count">0 characters</span>
-        <button id="clearBtn" class="btn-clear" type="button" aria-label="Clear input">✕ Clear</button>
+        <button id="clearBtn" class="btn-clear" type="button">✕ Clear</button>
       </div>
 
       <button id="checkBtn" class="btn-check" type="button">
@@ -54,9 +61,8 @@
         <div class="btn-loader" aria-hidden="true"></div>
       </button>
 
-      <!-- ── Result panel ─────────────────────── -->
+      <!-- Result panel -->
       <div id="resultPanel" class="result-panel" aria-live="polite" hidden>
-
         <div class="result-verdict">
           <div id="verdictIcon" class="verdict-icon" aria-hidden="true"></div>
           <div>
@@ -64,16 +70,14 @@
             <div id="verdictSub" class="verdict-sub"></div>
           </div>
         </div>
-
         <div class="meter-row">
           <span class="meter-label">FAKE</span>
-          <div class="meter-track" role="img" aria-label="Probability bar">
-            <div id="fakeBar"  class="meter-fill meter-fill--fake"></div>
-            <div id="realBar"  class="meter-fill meter-fill--real"></div>
+          <div class="meter-track">
+            <div id="fakeBar" class="meter-fill meter-fill--fake"></div>
+            <div id="realBar" class="meter-fill meter-fill--real"></div>
           </div>
           <span class="meter-label">REAL</span>
         </div>
-
         <div class="prob-row">
           <div class="prob-cell">
             <div id="fakeProb" class="prob-num prob-num--fake">—</div>
@@ -85,18 +89,79 @@
             <div class="prob-name">Real probability</div>
           </div>
         </div>
+        <p class="disclaimer">⚠ This tool analyses writing style, not factual accuracy. Always verify with trusted sources.</p>
+      </div>
 
-        <p class="disclaimer">
-          ⚠ This tool is powered by a machine-learning model and may make errors.
-          Always verify with trusted sources.
-        </p>
+      <!-- Error panel -->
+      <div id="errorPanel" class="error-panel" aria-live="assertive" hidden>
+        <span class="error-icon">!</span>
+        <span id="errorMsg"></span>
+      </div>
+
+    </section>
+
+    <!-- ── IMAGE TAB ──────────────────────────── -->
+    <section class="card" id="tab-image" style="display:none;">
+
+      <div class="card-top">
+        <span class="badge">NEW</span>
+        <span class="card-label">Upload an image to check authenticity</span>
+      </div>
+
+      <!-- Upload area -->
+      <div class="upload-area" id="uploadArea" onclick="document.getElementById('imageInput').click()">
+        <div class="upload-icon">🖼️</div>
+        <div class="upload-text">Click to upload or drag & drop</div>
+        <div class="upload-sub">JPG, PNG, WEBP supported</div>
+        <input type="file" id="imageInput" accept=".jpg,.jpeg,.png,.webp" style="display:none" />
+      </div>
+
+      <!-- Preview -->
+      <div id="imagePreview" class="image-preview" hidden>
+        <img id="previewImg" src="" alt="Preview" />
+        <button class="btn-clear" onclick="clearImage()">✕ Remove</button>
+      </div>
+
+      <button id="analyseImageBtn" class="btn-check" type="button" style="margin-top:1rem;">
+        <span class="btn-text">Analyse Image</span>
+        <span class="btn-icon">→</span>
+        <div class="btn-loader"></div>
+      </button>
+
+      <!-- Image Result panel -->
+      <div id="imageResultPanel" class="result-panel img-result" aria-live="polite" hidden>
+
+        <div class="result-verdict">
+          <div id="imgVerdictIcon" class="verdict-icon"></div>
+          <div>
+            <div id="imgVerdictLabel" class="verdict-label"></div>
+            <div id="imgVerdictSub" class="verdict-sub"></div>
+          </div>
+        </div>
+
+        <!-- 4 category bars -->
+        <div id="imgBars" class="img-bars"></div>
+
+        <!-- Metadata -->
+        <div id="imgMeta" class="img-meta-grid"></div>
+
+        <!-- Indicators -->
+        <div id="imgIndicators" class="indicators-list"></div>
+
+        <!-- Heatmap -->
+        <div id="heatmapSection" hidden>
+          <p class="section-label">🔍 Forensic Heatmap (suspicious regions in red)</p>
+          <img id="heatmapImg" src="" alt="Heatmap" class="heatmap-img" />
+        </div>
+
+        <p class="disclaimer">⚠ Forensic analysis is deterministic math. AI-generation score is a heuristic signal, not a trained model. Cross-check important findings manually.</p>
 
       </div>
 
-      <!-- ── Error panel ──────────────────────── -->
-      <div id="errorPanel" class="error-panel" aria-live="assertive" hidden>
-        <span class="error-icon" aria-hidden="true">!</span>
-        <span id="errorMsg"></span>
+      <!-- Image Error panel -->
+      <div id="imgErrorPanel" class="error-panel" aria-live="assertive" hidden>
+        <span class="error-icon">!</span>
+        <span id="imgErrorMsg"></span>
       </div>
 
     </section>
@@ -107,138 +172,233 @@
       <div class="steps">
         <div class="step">
           <div class="step-num">01</div>
-          <div class="step-body">
-            <strong>Text cleaning</strong>
-            NLTK removes stopwords, URLs, and noise, then lemmatizes each token.
-          </div>
+          <div class="step-body"><strong>Text cleaning</strong> NLTK removes stopwords, URLs, and noise, then lemmatizes each token.</div>
         </div>
         <div class="step">
           <div class="step-num">02</div>
-          <div class="step-body">
-            <strong>TF-IDF vectorisation</strong>
-            10,000-feature unigram + bigram vectors capture language patterns.
-          </div>
+          <div class="step-body"><strong>TF-IDF vectorisation</strong> 15,000-feature unigram + bigram + trigram vectors capture language patterns.</div>
         </div>
         <div class="step">
           <div class="step-num">03</div>
-          <div class="step-body">
-            <strong>Logistic Regression</strong>
-            A calibrated classifier outputs a probability score for fake vs real.
-          </div>
+          <div class="step-body"><strong>Logistic Regression</strong> Trained on 64,252 balanced articles from WELFake + ISOT + Indian News datasets.</div>
+        </div>
+        <div class="step">
+          <div class="step-num">04</div>
+          <div class="step-body"><strong>Image Forensics</strong> EXIF metadata, ELA, noise analysis, JPEG artifacts, histogram, and lighting consistency checks.</div>
         </div>
       </div>
     </section>
 
     <footer class="site-footer">
-      Built with Flask · scikit-learn · NLTK &nbsp;|&nbsp; TruthLens © 2025
+      Built with Flask · scikit-learn · NLTK · OpenCV &nbsp;|&nbsp; TruthLens © 2025
     </footer>
 
   </main>
 
   <script>
-    const input    = document.getElementById("newsInput");
-    const checkBtn = document.getElementById("checkBtn");
-    const clearBtn = document.getElementById("clearBtn");
-    const charCount= document.getElementById("charCount");
-    const resultPanel = document.getElementById("resultPanel");
-    const errorPanel  = document.getElementById("errorPanel");
+    // ── Tab switching ──────────────────────────
+    function switchTab(tab) {
+      document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+      document.querySelector(`[data-tab="${tab}"]`).classList.add('active');
+      document.getElementById('tab-text').style.display  = tab === 'text'  ? '' : 'none';
+      document.getElementById('tab-image').style.display = tab === 'image' ? '' : 'none';
+    }
 
-    // ── Character counter ──────────────────────
+    // ── TEXT: Character counter ────────────────
+    const input = document.getElementById("newsInput");
+    const charCount = document.getElementById("charCount");
     input.addEventListener("input", () => {
       const n = input.value.length;
       charCount.textContent = n === 1 ? "1 character" : `${n.toLocaleString()} characters`;
     });
 
-    // ── Clear ──────────────────────────────────
-    clearBtn.addEventListener("click", () => {
+    document.getElementById("clearBtn").addEventListener("click", () => {
       input.value = "";
       charCount.textContent = "0 characters";
-      hide(resultPanel);
-      hide(errorPanel);
+      hide(document.getElementById("resultPanel"));
+      hide(document.getElementById("errorPanel"));
       input.focus();
     });
 
-    // ── Keyboard shortcut: Ctrl/Cmd + Enter ───
     input.addEventListener("keydown", e => {
-      if ((e.ctrlKey || e.metaKey) && e.key === "Enter") checkBtn.click();
+      if ((e.ctrlKey || e.metaKey) && e.key === "Enter") document.getElementById("checkBtn").click();
     });
 
-    // ── Analyse ────────────────────────────────
-    checkBtn.addEventListener("click", async () => {
+    // ── TEXT: Analyse ──────────────────────────
+    document.getElementById("checkBtn").addEventListener("click", async () => {
       const text = input.value.trim();
-      if (!text) {
-        showError("Please paste a news headline or article first.");
-        return;
-      }
+      if (!text) { showError("Please paste a news headline or article first."); return; }
 
-      setLoading(true);
-      hide(resultPanel);
-      hide(errorPanel);
+      setLoading("checkBtn", true);
+      hide(document.getElementById("resultPanel"));
+      hide(document.getElementById("errorPanel"));
 
       try {
-        const res = await fetch("/predict", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ text }),
-        });
+        const res  = await fetch("/predict", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ text }) });
         const data = await res.json();
-
-        if (!res.ok) {
-          showError(data.error || "Server error. Please try again.");
-          return;
-        }
-
+        if (!res.ok) { showError(data.error || "Server error."); return; }
         showResult(data);
-      } catch (err) {
-        showError("Could not reach the server. Is the Flask app running?");
-      } finally {
-        setLoading(false);
-      }
+      } catch { showError("Could not reach the server. Is the Flask app running?"); }
+      finally   { setLoading("checkBtn", false); }
     });
+
+    function showResult({ label, prediction, confidence, fake_prob, real_prob }) {
+      const isFake = prediction === 0;
+      const rp = document.getElementById("resultPanel");
+      document.getElementById("verdictIcon").textContent  = isFake ? "✗" : "✓";
+      document.getElementById("verdictLabel").textContent = label;
+      document.getElementById("verdictSub").textContent   = `Model confidence: ${confidence}%`;
+      rp.classList.remove("verdict--fake","verdict--real");
+      rp.classList.add(isFake ? "verdict--fake" : "verdict--real");
+      const fb = document.getElementById("fakeBar");
+      const rb = document.getElementById("realBar");
+      fb.style.width = "0%"; rb.style.width = "0%";
+      requestAnimationFrame(() => { fb.style.width = fake_prob + "%"; rb.style.width = real_prob + "%"; });
+      document.getElementById("fakeProb").textContent = fake_prob + "%";
+      document.getElementById("realProb").textContent = real_prob + "%";
+      show(rp);
+      rp.scrollIntoView({ behavior: "smooth", block: "nearest" });
+    }
+
+    function showError(msg) {
+      document.getElementById("errorMsg").textContent = msg;
+      show(document.getElementById("errorPanel"));
+    }
+
+    // ── IMAGE: Upload handling ─────────────────
+    const imageInput = document.getElementById("imageInput");
+
+    document.getElementById("uploadArea").addEventListener("dragover", e => { e.preventDefault(); e.currentTarget.classList.add("dragover"); });
+    document.getElementById("uploadArea").addEventListener("dragleave", e => e.currentTarget.classList.remove("dragover"));
+    document.getElementById("uploadArea").addEventListener("drop", e => {
+      e.preventDefault();
+      e.currentTarget.classList.remove("dragover");
+      const file = e.dataTransfer.files[0];
+      if (file) loadImagePreview(file);
+    });
+
+    imageInput.addEventListener("change", () => {
+      if (imageInput.files[0]) loadImagePreview(imageInput.files[0]);
+    });
+
+    function loadImagePreview(file) {
+      const reader = new FileReader();
+      reader.onload = e => {
+        document.getElementById("previewImg").src = e.target.result;
+        hide(document.getElementById("uploadArea"));
+        show(document.getElementById("imagePreview"));
+        hide(document.getElementById("imageResultPanel"));
+        hide(document.getElementById("imgErrorPanel"));
+      };
+      reader.readAsDataURL(file);
+    }
+
+    function clearImage() {
+      imageInput.value = "";
+      document.getElementById("previewImg").src = "";
+      show(document.getElementById("uploadArea"));
+      hide(document.getElementById("imagePreview"));
+      hide(document.getElementById("imageResultPanel"));
+      hide(document.getElementById("imgErrorPanel"));
+    }
+
+    // ── IMAGE: Analyse ─────────────────────────
+    document.getElementById("analyseImageBtn").addEventListener("click", async () => {
+      const file = imageInput.files[0];
+      if (!file) { showImgError("Please upload an image first."); return; }
+
+      setLoading("analyseImageBtn", true);
+      hide(document.getElementById("imageResultPanel"));
+      hide(document.getElementById("imgErrorPanel"));
+
+      try {
+        const formData = new FormData();
+        formData.append("image", file);
+
+        const res  = await fetch("/analyze-image", { method: "POST", body: formData });
+        const data = await res.json();
+        if (!res.ok) { showImgError(data.error || "Analysis failed."); return; }
+        showImageResult(data);
+      } catch { showImgError("Could not reach the server. Is the Flask app running?"); }
+      finally   { setLoading("analyseImageBtn", false); }
+    });
+
+    function showImageResult(data) {
+      const rp = document.getElementById("imageResultPanel");
+      const cls = data.classification;
+
+      const icons = { "Original": "✓", "AI Generated": "🤖", "Edited/Manipulated": "✎", "Color Graded/Enhanced": "🎨" };
+      const clsColors = { "Original": "verdict--real", "AI Generated": "verdict--fake", "Edited/Manipulated": "verdict--fake", "Color Graded/Enhanced": "verdict--warn" };
+
+      document.getElementById("imgVerdictIcon").textContent = icons[cls] || "?";
+      document.getElementById("imgVerdictLabel").textContent = cls;
+      document.getElementById("imgVerdictSub").textContent = `Confidence: ${data.confidence[cls]}%`;
+
+      rp.classList.remove("verdict--fake","verdict--real","verdict--warn");
+      rp.classList.add(clsColors[cls] || "verdict--real");
+
+      // Category bars
+      const barsEl = document.getElementById("imgBars");
+      barsEl.innerHTML = "";
+      const barColors = { "Original": "#1a7a4a", "AI Generated": "#c0392b", "Edited/Manipulated": "#e67e22", "Color Graded/Enhanced": "#8e44ad" };
+      for (const [cat, pct] of Object.entries(data.confidence)) {
+        barsEl.innerHTML += `
+          <div class="img-bar-row">
+            <span class="img-bar-label">${cat}</span>
+            <div class="img-bar-track">
+              <div class="img-bar-fill" style="width:${pct}%;background:${barColors[cat]||'#666'}"></div>
+            </div>
+            <span class="img-bar-pct">${pct}%</span>
+          </div>`;
+      }
+
+      // Metadata
+      const metaEl = document.getElementById("imgMeta");
+      const meta = data.metadata || {};
+      const metaItems = [
+        ["Camera", meta.camera_make && meta.camera_model ? `${meta.camera_make} ${meta.camera_model}` : "Not found"],
+        ["Capture Date", meta.capture_datetime || "Not found"],
+        ["Resolution", meta.resolution || "Unknown"],
+        ["EXIF Present", meta.exif_present ? "Yes ✓" : "No ✗"],
+        ["Software", meta.software_tag || "None detected"],
+        ["GPS", meta.gps ? `${meta.gps.lat}, ${meta.gps.lon}` : "Not found"],
+        ["Editing Software", data.editing_detected || "None detected"],
+        ["AI Generator", data.ai_detected || "None detected"],
+      ];
+      metaEl.innerHTML = metaItems.map(([k,v]) => `<div class="meta-item"><span class="meta-key">${k}</span><span class="meta-val">${v}</span></div>`).join("");
+
+      // Indicators
+      const indEl = document.getElementById("imgIndicators");
+      if (data.indicators && data.indicators.length) {
+        indEl.innerHTML = `<p class="section-label">🔬 Forensic Indicators</p>` +
+          data.indicators.map(i => `<div class="indicator-item">• ${i}</div>`).join("");
+      } else {
+        indEl.innerHTML = `<p class="section-label">No strong forensic indicators detected.</p>`;
+      }
+
+      // Heatmap
+      if (data.heatmap_base64) {
+        document.getElementById("heatmapImg").src = `data:image/png;base64,${data.heatmap_base64}`;
+        show(document.getElementById("heatmapSection"));
+      }
+
+      show(rp);
+      rp.scrollIntoView({ behavior: "smooth", block: "nearest" });
+    }
+
+    function showImgError(msg) {
+      document.getElementById("imgErrorMsg").textContent = msg;
+      show(document.getElementById("imgErrorPanel"));
+    }
 
     // ── Helpers ────────────────────────────────
     function hide(el)  { el.hidden = true;  el.classList.remove("visible"); }
     function show(el)  { el.hidden = false; requestAnimationFrame(() => el.classList.add("visible")); }
 
-    function setLoading(on) {
-      checkBtn.classList.toggle("loading", on);
-      checkBtn.disabled = on;
-    }
-
-    function showError(msg) {
-      document.getElementById("errorMsg").textContent = msg;
-      show(errorPanel);
-    }
-
-    function showResult({ label, prediction, confidence, fake_prob, real_prob }) {
-      const isFake = prediction === 0;
-
-      // Verdict icon & label
-      document.getElementById("verdictIcon").textContent = isFake ? "✗" : "✓";
-      document.getElementById("verdictLabel").textContent = label;
-      document.getElementById("verdictSub").textContent  =
-        `Model confidence: ${confidence}%`;
-
-      // Colour class on panel
-      resultPanel.classList.remove("verdict--fake", "verdict--real");
-      resultPanel.classList.add(isFake ? "verdict--fake" : "verdict--real");
-
-      // Meter bars (animate width)
-      const fakeBar = document.getElementById("fakeBar");
-      const realBar = document.getElementById("realBar");
-      fakeBar.style.width = "0%";
-      realBar.style.width = "0%";
-      requestAnimationFrame(() => {
-        fakeBar.style.width = fake_prob + "%";
-        realBar.style.width = real_prob + "%";
-      });
-
-      // Probability numbers
-      document.getElementById("fakeProb").textContent = fake_prob + "%";
-      document.getElementById("realProb").textContent = real_prob + "%";
-
-      show(resultPanel);
-      resultPanel.scrollIntoView({ behavior: "smooth", block: "nearest" });
+    function setLoading(btnId, on) {
+      const btn = document.getElementById(btnId);
+      btn.classList.toggle("loading", on);
+      btn.disabled = on;
     }
   </script>
 </body>
